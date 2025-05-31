@@ -7,6 +7,12 @@ import {
 import { writeFile } from "fs/promises";
 import path from "path";
 import os from "os";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_KEY! // Must allow write access to storage
+);
 
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!, // Set this in .env.local
@@ -26,8 +32,28 @@ export async function POST(req: NextRequest) {
 
     // Save the file temporarily to disk
     const buffer = Buffer.from(await file.arrayBuffer());
-    const tempPath = path.join(os.tmpdir(), file.name);
+    const fileExt = file.name.split(".").pop();
+    const filename = `bwm-halloween/${Date.now()}.${fileExt || "webm"}`;
+    const tempPath = path.join(os.tmpdir(), filename);
     await writeFile(tempPath, buffer);
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from("bwm-halloween")
+      .upload(filename, buffer, {
+        contentType: file.type || "audio/webm",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError.message);
+      return NextResponse.json(
+        { error: "Failed to upload to storage." },
+        { status: 500 }
+      );
+    }
+
+    const supabaseUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bwm-halloween/${filename}`;
 
     // Upload to Gemini
     const uploaded = await genAI.files.upload({
@@ -35,7 +61,6 @@ export async function POST(req: NextRequest) {
       config: { mimeType: file.type || "audio/webm" },
     });
 
-    // Generate transcript
     const result = await genAI.models.generateContent({
       model: "gemini-2.0-flash",
       contents: createUserContent([
@@ -46,7 +71,10 @@ export async function POST(req: NextRequest) {
 
     const text = result.text;
 
-    return NextResponse.json({ text });
+    return NextResponse.json({
+      text,
+      audioUrl: supabaseUrl, // optionally return the public URL
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
