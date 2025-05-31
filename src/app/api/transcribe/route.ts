@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       model: "gemini-2.0-flash",
       contents: createUserContent([
         createPartFromUri(uploaded.uri || "", uploaded.mimeType || ""),
-        "Generate a transcript of the speech. If there is chinese characters in the transcript, use Simplified Chinese Characters instead.",
+        "Generate a transcript of the speech. If there is chinese characters in the transcript, use Simplified Chinese Characters instead. If any swear words are used, censor it using *.",
       ]),
     });
 
