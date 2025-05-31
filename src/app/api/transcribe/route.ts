@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
       model: "gemini-2.0-flash",
       contents: createUserContent([
         createPartFromUri(uploaded.uri || "", uploaded.mimeType || ""),
-        "Generate a transcript of the speech. If there is chinese characters in the transcript, use Simplified Chinese Characters instead. If any swear words are used, censor it using *.",
+        "Generate a transcript of the speech primarily in English. If any parts are spoken in Chinese, transcribe them using Simplified Chinese characters. Censor any swear words using asterisks (e.g., ****). Prefer English when the meaning is ambiguous or when both languages are used.",
       ]),
     });
 
     const text = result.text;
 
     return NextResponse.json({ text });
-  } catch (err: any) {
+  } catch (err) {
     console.error(err);
     return NextResponse.json(
       { error: "Something went wrong." },

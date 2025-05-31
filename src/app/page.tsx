@@ -6,7 +6,7 @@ export default function Home() {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [bars, setBars] = useState<number[]>([]);
-  const [threshold, setThreshold] = useState(1); // 🎯 You can tweak this
+  const [threshold] = useState(0.8);
   const [talking, setTalking] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
