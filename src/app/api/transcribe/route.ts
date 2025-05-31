@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Save the file temporarily to disk
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileExt = file.name.split(".").pop();
-    const filename = `bwm-halloween/${Date.now()}.${fileExt || "webm"}`;
+    const filename = `${Date.now()}.${fileExt || "webm"}`;
     const tempPath = path.join(os.tmpdir(), filename);
     await writeFile(tempPath, buffer);
 
