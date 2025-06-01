@@ -46,11 +46,17 @@ export default function Mountain() {
   useEffect(() => {
     const centerX = window.innerWidth / 2 - basketWidth / 2;
     basketX.set(centerX);
-  }, []);
+  }, [basketX]);
 
   const connectSerial = async () => {
     try {
-      const selectedPort = await (navigator as any).serial.requestPort();
+      const selectedPort = await (
+        navigator as Navigator & {
+          serial: {
+            requestPort: () => Promise<SerialPort>;
+          };
+        }
+      ).serial.requestPort();
       await selectedPort.open({ baudRate: 9600 });
 
       const decoder = new TextDecoderStream();
@@ -195,6 +201,17 @@ export default function Mountain() {
     return () => clearInterval(interval);
   }, []);
 
+  const checkCollision = (px: number, py: number) => {
+    const bx = basketX.get();
+    return (
+      py + personSize >= basketY &&
+      py <= basketY + basketHeight &&
+      px + personSize >= bx &&
+      px <= bx + basketWidth &&
+      gameStartRef.current
+    );
+  };
+
   useEffect(() => {
     const loop = () => {
       setPeople((prev) => {
@@ -241,18 +258,7 @@ export default function Mountain() {
 
     animationFrameId.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationFrameId.current!);
-  }, []);
-
-  const checkCollision = (px: number, py: number) => {
-    const bx = basketX.get();
-    return (
-      py + personSize >= basketY &&
-      py <= basketY + basketHeight &&
-      px + personSize >= bx &&
-      px <= bx + basketWidth &&
-      gameStartRef.current
-    );
-  };
+  }, [checkCollision]);
 
   const gameStartRef = useRef(gameStart);
 
