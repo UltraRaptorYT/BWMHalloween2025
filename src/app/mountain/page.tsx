@@ -39,7 +39,7 @@ export default function Mountain() {
   const fallSpeed = 2;
   const climbSpeed = 1;
   const personSize = 128;
-  const spawnTiming = 1500;
+  const spawnTiming = 1000;
 
   const keysPressed = useRef({ left: false, right: false });
 
@@ -144,8 +144,11 @@ export default function Mountain() {
   }, []);
 
   const handleRestart = () => {
-    const centerX = window.innerWidth / 2 - basketWidth / 2;
-    basketX.set(centerX);
+    requestAnimationFrame(() => {
+      const centerX = window.innerWidth / 2 - basketWidth / 2;
+      basketX.set(centerX);
+    });
+
     keysPressed.current.left = false;
     keysPressed.current.right = false;
     setScore(0);
@@ -176,7 +179,7 @@ export default function Mountain() {
     const newPerson: PersonType = {
       id: uuidv4(),
       x: Math.random() * (window.innerWidth - personSize * 2) + personSize / 2,
-      y: window.innerHeight + personSize,
+      y: window.innerHeight + personSize + Math.random() * personSize,
       caught: false,
       state: "climbing",
       minClimbY: Math.random() * 200 + 100, // climb to at least Y=100–300
@@ -186,12 +189,6 @@ export default function Mountain() {
 
     setPeople((prev) => [...prev, newPerson]);
   }
-
-  useEffect(() => {
-    for (let i = 0; i < 3; i++) {
-      spawnNewPerson();
-    }
-  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
