@@ -7,17 +7,18 @@ import { Basket } from "@/components/Basket";
 import { Person } from "@/components/Person";
 import { v4 as uuidv4 } from "uuid";
 
+type PersonState = "climbing" | "falling";
+
 type PersonType = {
   id: string;
   x: number;
   y: number;
   caught: boolean;
+  state: PersonState;
+  minClimbY: number;
+  maxClimbY: number;
+  flipChance: number; // chance to flip to falling each frame
 };
-
-interface SerialPortLike {
-  open: (options: { baudRate: number }) => Promise<void>;
-  readable: ReadableStream<Uint8Array> | null;
-}
 
 export default function Mountain() {
   const [gameStart, setGameStart] = useState(false);
@@ -34,8 +35,11 @@ export default function Mountain() {
   const basketHeight = 56;
   const basketY =
     typeof window !== "undefined" ? window.innerHeight - basketHeight - 10 : 0;
-  const moveSpeed = 50;
+  const moveSpeed = 75;
   const fallSpeed = 2;
+  const climbSpeed = 1;
+  const personSize = 128;
+  const spawnTiming = 1500;
 
   const keysPressed = useRef({ left: false, right: false });
 
@@ -89,7 +93,7 @@ export default function Mountain() {
       if (keysPressed.current.right) newX += moveSpeed;
 
       newX = Math.max(0, Math.min(maxX, newX));
-      animate(basketX, newX, { duration: 0.1, ease: "easeOut" });
+      animate(basketX, newX, { duration: 0.1, ease: "linear" });
 
       animationFrameId.current = requestAnimationFrame(moveLoop);
     };
@@ -120,15 +124,26 @@ export default function Mountain() {
     };
   }, [gameStart, gameOver]);
 
+  useEffect(() => {
+    const handleGameStartKey = (e: KeyboardEvent) => {
+      if (e.key === "`" && !gameStart && !gameOver) {
+        setGameStart(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleGameStartKey);
+    return () => {
+      window.removeEventListener("keydown", handleGameStartKey);
+    };
+  }, []);
+
   const handleRestart = () => {
-    cancelAnimationFrame(animationFrameId.current!);
     const centerX = window.innerWidth / 2 - basketWidth / 2;
     basketX.set(centerX);
     keysPressed.current.left = false;
     keysPressed.current.right = false;
     setScore(0);
     setTimer(commonTimer);
-    setPeople([]);
     setGameOver(false);
     setGameStart(true);
   };
@@ -151,80 +166,136 @@ export default function Mountain() {
     return () => clearInterval(interval);
   }, [gameStart, gameOver]);
 
-  useEffect(() => {
-    if (!gameStart) return;
-    const interval = setInterval(() => {
-      const newPerson: PersonType = {
-        id: uuidv4(),
-        x: Math.random() * (window.innerWidth - 40),
-        y: -40,
-        caught: false,
-      };
-      setPeople((prev) => [...prev, newPerson]);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [gameStart]);
+  function spawnNewPerson() {
+    const newPerson: PersonType = {
+      id: uuidv4(),
+      x: Math.random() * (window.innerWidth - personSize * 2) + personSize / 2,
+      y: window.innerHeight + personSize,
+      caught: false,
+      state: "climbing",
+      minClimbY: Math.random() * 200 + 100, // climb to at least Y=100–300
+      maxClimbY: Math.random() * 200 + 300, // flip if Y < 300–500
+      flipChance: Math.random() * 0.01 + 0.005, // random flip chance per frame (0.5%–1.5%)
+    };
+
+    setPeople((prev) => [...prev, newPerson]);
+  }
 
   useEffect(() => {
-    if (!gameStart) return;
+    for (let i = 0; i < 3; i++) {
+      spawnNewPerson();
+    }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      spawnNewPerson();
+    }, spawnTiming);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     const loop = () => {
       setPeople((prev) => {
         const updated: PersonType[] = [];
+
         for (const p of prev) {
           if (p.caught) continue;
-          const nextY = p.y + fallSpeed;
-          const isCaught = checkCollision(p.x, nextY);
-          if (isCaught) {
-            setScore((s) => s + 1);
-            continue;
-          }
-          if (nextY < window.innerHeight) {
-            updated.push({ ...p, y: nextY });
+
+          let nextY = p.y;
+
+          if (p.state === "climbing") {
+            nextY -= climbSpeed;
+
+            const shouldFlip =
+              nextY <= p.minClimbY ||
+              (nextY <= p.maxClimbY && Math.random() < p.flipChance);
+
+            if (shouldFlip) {
+              updated.push({ ...p, state: "falling" });
+              continue;
+            }
+
+            if (nextY > -40) {
+              updated.push({ ...p, y: nextY });
+            }
+          } else if (p.state === "falling") {
+            nextY += fallSpeed;
+            const isCaught = checkCollision(p.x, nextY);
+            if (isCaught) {
+              setScore((s) => s + 1);
+              continue;
+            }
+            if (nextY < window.innerHeight) {
+              updated.push({ ...p, y: nextY });
+            }
           }
         }
+
         return updated;
       });
-      requestAnimationFrame(loop);
+
+      animationFrameId.current = requestAnimationFrame(loop);
     };
-    requestAnimationFrame(loop);
-  }, [gameStart]);
+
+    animationFrameId.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animationFrameId.current!);
+  }, []);
 
   const checkCollision = (px: number, py: number) => {
-    const personSize = 40;
     const bx = basketX.get();
     return (
       py + personSize >= basketY &&
       py <= basketY + basketHeight &&
       px + personSize >= bx &&
-      px <= bx + basketWidth
+      px <= bx + basketWidth &&
+      gameStartRef.current
     );
   };
 
+  const gameStartRef = useRef(gameStart);
+
+  useEffect(() => {
+    gameStartRef.current = gameStart;
+  }, [gameStart]);
+
   return (
-    <div className="mountainBG w-full min-h-screen relative overflow-hidden">
-      {!gameStart && !gameOver && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
-          <Button onClick={() => setGameStart(true)}>Start Game</Button>
-          <Button onClick={connectSerial}>Connect Joystick</Button>
+    <div className="mountainBG w-full min-h-screen relative overflow-hidden flex">
+      <div>
+        {!gameStart && !gameOver && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
+            <Button onClick={() => setGameStart(true)}>Start Game</Button>
+            <Button onClick={connectSerial}>Connect Joystick</Button>
+          </div>
+        )}
+        {gameOver && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+            <h1 className="text-4xl font-bold mb-4">Game Over</h1>
+            <p className="text-xl mb-6">Final Score: {score}</p>
+            <Button onClick={handleRestart}>Play Again</Button>
+          </div>
+        )}
+        <div className="absolute top-4 left-4 text-black text-xl font-bold z-10">
+          Score: {score}
         </div>
-      )}
-      {gameOver && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 z-20 text-white">
-          <h1 className="text-4xl font-bold mb-4">Game Over</h1>
-          <p className="text-xl mb-6">Final Score: {score}</p>
-          <Button onClick={handleRestart}>Play Again</Button>
+        <div className="absolute top-4 right-4 text-black text-xl font-bold z-10">
+          Time: {timer}s
         </div>
-      )}
-      <div className="absolute top-4 left-4 text-black text-xl font-bold z-10">
-        Score: {score}
-      </div>
-      <div className="absolute top-4 right-4 text-black text-xl font-bold z-10">
-        Time: {timer}s
       </div>
       {gameStart && <Basket x={basketX} y={basketY} />}
-      {people.map((p) => (
-        <Person key={p.id} x={p.x} y={p.y} caught={p.caught} />
-      ))}
+      <div id="peopleDiv" className="grow-1">
+        {people.map((p) => (
+          <Person
+            key={p.id}
+            x={p.x}
+            y={p.y}
+            caught={p.caught}
+            state={p.state}
+            size={personSize}
+          />
+        ))}
+      </div>
     </div>
   );
 }
