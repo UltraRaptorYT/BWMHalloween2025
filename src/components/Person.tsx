@@ -21,14 +21,13 @@ export function Person({
   return (
     <motion.div
       className={cn(
-        `absolute bg-no-repeat bg-contain`,
-        state === "falling" && "glow"
+        `absolute bg-no-repeat bg-center`,
+        state === "falling" ? "bg-cover glow" : "bg-contain"
       )}
       style={{
         left: x,
         top: y,
         backgroundImage: `url(${state}.gif?${uuid})`,
-        backgroundPosition: "center",
         opacity: caught ? 0.3 : 1,
         width: size,
         height: size,

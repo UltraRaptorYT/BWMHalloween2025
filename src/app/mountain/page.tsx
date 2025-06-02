@@ -45,6 +45,15 @@ export default function Mountain() {
 
   const keysPressed = useRef({ left: false, right: false });
 
+  // Preload Images
+  useEffect(() => {
+    const imgs = ["climbing.gif", "falling.gif"];
+    imgs.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, []);
+
   useEffect(() => {
     const centerX = window.innerWidth / 2 - basketWidth / 2;
     basketX.set(centerX);
