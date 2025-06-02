@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Basket } from "@/components/Basket";
 import { Person } from "@/components/Person";
 import { v4 as uuidv4 } from "uuid";
+import "./mountain.css";
 
 type PersonState = "climbing" | "falling";
 
@@ -40,6 +41,7 @@ export default function Mountain() {
   const climbSpeed = 1;
   const personSize = 128;
   const spawnTiming = 1000;
+  const maxPeople = 6;
 
   const keysPressed = useRef({ left: false, right: false });
 
@@ -176,18 +178,23 @@ export default function Mountain() {
   }, [gameStart, gameOver]);
 
   function spawnNewPerson() {
-    const newPerson: PersonType = {
-      id: uuidv4(),
-      x: Math.random() * (window.innerWidth - personSize * 2) + personSize / 2,
-      y: window.innerHeight + personSize + Math.random() * personSize,
-      caught: false,
-      state: "climbing",
-      minClimbY: Math.random() * 200 + 100, // climb to at least Y=100–300
-      maxClimbY: Math.random() * 200 + 300, // flip if Y < 300–500
-      flipChance: Math.random() * 0.01 + 0.005, // random flip chance per frame (0.5%–1.5%)
-    };
+    setPeople((prev) => {
+      if (prev.length >= maxPeople) return prev;
 
-    setPeople((prev) => [...prev, newPerson]);
+      const newPerson: PersonType = {
+        id: uuidv4(),
+        x:
+          Math.random() * (window.innerWidth - personSize * 2) + personSize / 2,
+        y: window.innerHeight + personSize + Math.random() * personSize,
+        caught: false,
+        state: "climbing",
+        minClimbY: Math.random() * 200 + 100, // climb to at least Y=100–300
+        maxClimbY: Math.random() * 200 + 300, // flip if Y < 300–500
+        flipChance: Math.random() * 0.01 + 0.005, // random flip chance per frame (0.5%–1.5%)
+      };
+
+      return [...prev, newPerson];
+    });
   }
 
   useEffect(() => {
@@ -264,7 +271,7 @@ export default function Mountain() {
   }, [gameStart]);
 
   return (
-    <div className="mountainBG w-full min-h-screen relative overflow-hidden flex">
+    <div className="mountainBG w-full min-h-screen relative overflow-hidden flex text-white">
       <div>
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
@@ -279,10 +286,10 @@ export default function Mountain() {
             <Button onClick={handleRestart}>Play Again</Button>
           </div>
         )}
-        <div className="absolute top-4 left-4 text-black text-xl font-bold z-10">
+        <div className="absolute top-4 left-4 text-xl font-bold z-10">
           Score: {score}
         </div>
-        <div className="absolute top-4 right-4 text-black text-xl font-bold z-10">
+        <div className="absolute top-4 right-4 text-xl font-bold z-10">
           Time: {timer}s
         </div>
       </div>
