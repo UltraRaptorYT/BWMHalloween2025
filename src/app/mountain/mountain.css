@@ -4,3 +4,7 @@
   background-position: bottom center;
   background-repeat: no-repeat;
 }
+
+.glow {
+  filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8)); /* Cyan glow */
+}

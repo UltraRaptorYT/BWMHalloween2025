@@ -39,7 +39,7 @@ export default function Mountain() {
   const moveSpeed = 75;
   const fallSpeed = 2;
   const climbSpeed = 1;
-  const personSize = 128;
+  const personSize = 200;
   const spawnTiming = 1000;
   const maxPeople = 6;
 
@@ -298,6 +298,7 @@ export default function Mountain() {
         {people.map((p) => (
           <Person
             key={p.id}
+            uuid={p.id}
             x={p.x}
             y={p.y}
             caught={p.caught}
