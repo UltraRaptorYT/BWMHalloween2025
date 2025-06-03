@@ -36,7 +36,7 @@ export function Person({
       style={{
         left: x,
         top: y,
-        backgroundImage: `url(${state}.gif?${uuid})`,
+        backgroundImage: `url(${state}.gif#${uuid})`,
         opacity: caught ? 0.3 : 1,
         width: size,
         height: size,
