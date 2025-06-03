@@ -1,8 +1,8 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export function Person({
   x,
@@ -19,13 +19,25 @@ export function Person({
   state: "climbing" | "falling";
   size: number;
 }) {
+  const [gifUrl, setGifUrl] = useState<string>("");
+
   useEffect(() => {
-    const imgs = [`climbing.gif?${uuid}`, `falling.gif?${uuid}`];
-    imgs.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-    });
-  }, []);
+    // Fetch base image from cache and turn into a blob
+    const controller = new AbortController();
+
+    fetch(`${state}.gif`, { cache: "force-cache", signal: controller.signal })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        setGifUrl(url);
+      });
+
+    return () => {
+      // Clean up old blob when uuid changes
+      URL.revokeObjectURL(gifUrl);
+      controller.abort();
+    };
+  }, [uuid, state]);
 
   return (
     <motion.div
@@ -36,7 +48,7 @@ export function Person({
       style={{
         left: x,
         top: y,
-        backgroundImage: `url(${state}.gif#${uuid})`,
+        backgroundImage: `url(${gifUrl})`,
         opacity: caught ? 0.3 : 1,
         width: size,
         height: size,
