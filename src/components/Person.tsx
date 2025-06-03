@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 
 export function Person({
@@ -18,6 +19,14 @@ export function Person({
   state: "climbing" | "falling";
   size: number;
 }) {
+  useEffect(() => {
+    const imgs = [`climbing.gif?${uuid}`, `falling.gif?${uuid}`];
+    imgs.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, []);
+
   return (
     <motion.div
       className={cn(
