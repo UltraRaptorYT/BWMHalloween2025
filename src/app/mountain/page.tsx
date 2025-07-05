@@ -28,7 +28,7 @@ export default function Mountain() {
   const commonTimer = 30;
   const [timer, setTimer] = useState(commonTimer);
   const [gameOver, setGameOver] = useState(false);
-  const serialReader = useRef<ReadableStreamDefaultReader<string> | null>(null);
+  // const serialReader = useRef<ReadableStreamDefaultReader<string> | null>(null);
   const animationFrameId = useRef<number>(0);
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const gamepadIndex = useRef<number | null>(null);
