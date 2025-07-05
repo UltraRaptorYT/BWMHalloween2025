@@ -5,6 +5,14 @@
   background-repeat: no-repeat;
 }
 
-.glow {
+.glow-cyan {
   filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.8)); /* Cyan glow */
+}
+
+.glow-orange {
+  filter: drop-shadow(0 0 15px rgba(255, 181, 92, 0.8)); /* Orange glow */
+}
+
+.people {
+  transition: filter .5s ease;
 }

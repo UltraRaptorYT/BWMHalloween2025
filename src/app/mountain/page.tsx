@@ -30,6 +30,8 @@ export default function Mountain() {
   const [gameOver, setGameOver] = useState(false);
   const serialReader = useRef<ReadableStreamDefaultReader<string> | null>(null);
   const animationFrameId = useRef<number>(0);
+  const [gamepadConnected, setGamepadConnected] = useState(false);
+  const gamepadIndex = useRef<number | null>(null);
 
   const basketX = useMotionValue(0);
   const basketWidth = 160;
@@ -55,48 +57,71 @@ export default function Mountain() {
   }, []);
 
   useEffect(() => {
+    const handleGamepadConnected = (e: GamepadEvent) => {
+      setGamepadConnected(true);
+      gamepadIndex.current = e.gamepad.index;
+    };
+
+    const handleGamepadDisconnected = () => {
+      setGamepadConnected(false);
+      gamepadIndex.current = null;
+    };
+
+    window.addEventListener("gamepadconnected", handleGamepadConnected);
+    window.addEventListener("gamepaddisconnected", handleGamepadDisconnected);
+
+    return () => {
+      window.removeEventListener("gamepadconnected", handleGamepadConnected);
+      window.removeEventListener(
+        "gamepaddisconnected",
+        handleGamepadDisconnected
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     const centerX = window.innerWidth / 2 - basketWidth / 2;
     basketX.set(centerX);
   }, [basketX]);
 
-  const connectSerial = async () => {
-    try {
-      const selectedPort = await (
-        navigator as Navigator & {
-          serial: {
-            requestPort: () => Promise<SerialPort>;
-          };
-        }
-      ).serial.requestPort();
-      await selectedPort.open({ baudRate: 9600 });
+  // const connectSerial = async () => {
+  //   try {
+  //     const selectedPort = await (
+  //       navigator as Navigator & {
+  //         serial: {
+  //           requestPort: () => Promise<SerialPort>;
+  //         };
+  //       }
+  //     ).serial.requestPort();
+  //     await selectedPort.open({ baudRate: 9600 });
 
-      const decoder = new TextDecoderStream();
-      selectedPort.readable?.pipeTo(decoder.writable);
-      const reader = decoder.readable.getReader();
+  //     const decoder = new TextDecoderStream();
+  //     selectedPort.readable?.pipeTo(decoder.writable);
+  //     const reader = decoder.readable.getReader();
 
-      serialReader.current = reader;
+  //     serialReader.current = reader;
 
-      const readLoop = async () => {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (value) parseSerial(value);
-        }
-      };
+  //     const readLoop = async () => {
+  //       while (true) {
+  //         const { value, done } = await reader.read();
+  //         if (done) break;
+  //         if (value) parseSerial(value);
+  //       }
+  //     };
 
-      readLoop();
-    } catch (err) {
-      console.error("Serial connection failed:", err);
-    }
-  };
+  //     readLoop();
+  //   } catch (err) {
+  //     console.error("Serial connection failed:", err);
+  //   }
+  // };
 
-  const parseSerial = (line: string) => {
-    const match = line.match(/X:(\d+)/);
-    if (!match) return;
-    const x = parseInt(match[1], 10);
-    keysPressed.current.left = x < 400;
-    keysPressed.current.right = x > 600;
-  };
+  // const parseSerial = (line: string) => {
+  //   const match = line.match(/X:(\d+)/);
+  //   if (!match) return;
+  //   const x = parseInt(match[1], 10);
+  //   keysPressed.current.left = x < 400;
+  //   keysPressed.current.right = x > 600;
+  // };
 
   useEffect(() => {
     if (!gameStart || gameOver) return;
@@ -106,8 +131,27 @@ export default function Mountain() {
       const maxX = window.innerWidth - basketWidth;
 
       let newX = current;
-      if (keysPressed.current.left) newX -= moveSpeed;
-      if (keysPressed.current.right) newX += moveSpeed;
+
+      let left = false;
+      let right = false;
+
+      let gamepad = null;
+      if (gamepadIndex.current !== null) {
+        gamepad = navigator.getGamepads()[gamepadIndex.current];
+        if (gamepad) {
+          const threshold = 0.1;
+          const axis = gamepad.axes[0];
+
+          if (axis < -threshold) left = true;
+          if (axis > threshold) right = true;
+        }
+      }
+
+      if (keysPressed.current.left) left = true;
+      if (keysPressed.current.right) right = true;
+
+      if (left) newX -= moveSpeed * (gamepad ? 1.25 : 1);
+      if (right) newX += moveSpeed * (gamepad ? 1.25 : 1);
 
       newX = Math.max(0, Math.min(maxX, newX));
       animate(basketX, newX, { duration: 0.1, ease: "linear" });
@@ -280,12 +324,18 @@ export default function Mountain() {
   }, [gameStart]);
 
   return (
-    <div className="mountainBG w-full min-h-screen relative overflow-hidden flex text-white">
+    <div className="mountainBG w-full fullHeight relative overflow-hidden flex text-white">
+      {gamepadConnected && (
+        <div className="absolute bottom-4 left-4 text-xl font-bold z-10">
+          Gamepad Connected
+        </div>
+      )}
+
       <div>
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
             <Button onClick={() => setGameStart(true)}>Start Game</Button>
-            <Button onClick={connectSerial}>Connect Joystick</Button>
+            {/* <Button onClick={connectSerial}>Connect Joystick</Button> */}
           </div>
         )}
         {gameOver && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -20,21 +20,31 @@ export function Person({
   size: number;
 }) {
   const [gifUrl, setGifUrl] = useState<string>("");
+  const prevUrl = useRef<string>("");
 
   useEffect(() => {
-    // Fetch base image from cache and turn into a blob
     const controller = new AbortController();
 
     fetch(`${state}.gif`, { cache: "force-cache", signal: controller.signal })
       .then((res) => res.blob())
       .then((blob) => {
         const url = URL.createObjectURL(blob);
+
+        // Clean up old URL if it exists
+        if (prevUrl.current) {
+          URL.revokeObjectURL(prevUrl.current);
+        }
+
+        prevUrl.current = url;
         setGifUrl(url);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error(err);
+        }
       });
 
     return () => {
-      // Clean up old blob when uuid changes
-      URL.revokeObjectURL(gifUrl);
       controller.abort();
     };
   }, [uuid, state]);
@@ -42,8 +52,8 @@ export function Person({
   return (
     <motion.div
       className={cn(
-        `absolute bg-no-repeat bg-center`,
-        state === "falling" ? "bg-cover glow" : "bg-contain"
+        `absolute bg-no-repeat bg-center people`,
+        state === "falling" ? "bg-cover glow-cyan" : "bg-contain glow-orange"
       )}
       style={{
         left: x,
