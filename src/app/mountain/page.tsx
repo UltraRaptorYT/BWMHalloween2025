@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useMotionValue, animate } from "framer-motion";
+import {
+  useMotionValue,
+  animate,
+  motion,
+  AnimatePresence,
+} from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Basket } from "@/components/Basket";
 import { Person } from "@/components/Person";
@@ -28,10 +33,12 @@ export default function Mountain() {
   const commonTimer = 30;
   const [timer, setTimer] = useState(commonTimer);
   const [gameOver, setGameOver] = useState(false);
-  // const serialReader = useRef<ReadableStreamDefaultReader<string> | null>(null);
+  const serialReader = useRef<ReadableStreamDefaultReader<string> | null>(null);
   const animationFrameId = useRef<number>(0);
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const gamepadIndex = useRef<number | null>(null);
+  const [serialConnected, setSerialConnected] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const basketX = useMotionValue(0);
   const basketWidth = 160;
@@ -84,44 +91,75 @@ export default function Mountain() {
     basketX.set(centerX);
   }, [basketX]);
 
-  // const connectSerial = async () => {
-  //   try {
-  //     const selectedPort = await (
-  //       navigator as Navigator & {
-  //         serial: {
-  //           requestPort: () => Promise<SerialPort>;
-  //         };
-  //       }
-  //     ).serial.requestPort();
-  //     await selectedPort.open({ baudRate: 9600 });
+  const connectSerial = async (port?: SerialPort) => {
+    try {
+      const serialAPI = (navigator as Navigator & { serial: any }).serial;
 
-  //     const decoder = new TextDecoderStream();
-  //     selectedPort.readable?.pipeTo(decoder.writable);
-  //     const reader = decoder.readable.getReader();
+      if (!port) {
+        // ✅ Must be called inside a user click handler
+        port = await serialAPI.requestPort();
+      }
 
-  //     serialReader.current = reader;
+      await port?.open({ baudRate: 9600 });
+      setSerialConnected(true);
 
-  //     const readLoop = async () => {
-  //       while (true) {
-  //         const { value, done } = await reader.read();
-  //         if (done) break;
-  //         if (value) parseSerial(value);
-  //       }
-  //     };
+      const decoder = new TextDecoderStream();
+      port?.readable?.pipeTo(decoder.writable);
+      const reader = decoder.readable.getReader();
+      serialReader.current = reader;
 
-  //     readLoop();
-  //   } catch (err) {
-  //     console.error("Serial connection failed:", err);
-  //   }
-  // };
+      const readLoop = async () => {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!value) continue;
 
-  // const parseSerial = (line: string) => {
-  //   const match = line.match(/X:(\d+)/);
-  //   if (!match) return;
-  //   const x = parseInt(match[1], 10);
-  //   keysPressed.current.left = x < 400;
-  //   keysPressed.current.right = x > 600;
-  // };
+          console.log("Serial Received:", value.trim());
+
+          if (value.includes("halloween")) {
+            if (!gameStartRef.current && !gameOverRef.current) {
+              console.log("🎃 Starting game...");
+              setCountdown(3);
+            } else if (gameOverRef.current) {
+              console.log("🎃 Restarting game...");
+              setCountdown(3);
+            }
+            continue;
+          }
+        }
+      };
+
+      readLoop();
+    } catch (err) {
+      console.error("Serial connection failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 0) {
+      handleRestart();
+    }
+
+    const timeout = setTimeout(() => {
+      setCountdown((prev) => (prev ?? 1) - 1);
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [countdown]);
+
+  useEffect(() => {
+    const tryAutoConnect = async () => {
+      const serialAPI = (navigator as Navigator & { serial: any }).serial;
+      const ports = await serialAPI.getPorts();
+      if (ports.length > 0) {
+        console.log("Auto-connecting to saved port...");
+        connectSerial(ports[0]);
+      }
+    };
+
+    tryAutoConnect();
+  }, []);
 
   useEffect(() => {
     if (!gameStart || gameOver) return;
@@ -209,6 +247,7 @@ export default function Mountain() {
     setScore(0);
     setTimer(commonTimer);
     setGameOver(false);
+    setCountdown(null);
     setGameStart(true);
   };
 
@@ -318,10 +357,15 @@ export default function Mountain() {
   }, [checkCollision]);
 
   const gameStartRef = useRef(gameStart);
+  const gameOverRef = useRef(gameOver);
 
   useEffect(() => {
     gameStartRef.current = gameStart;
   }, [gameStart]);
+
+  useEffect(() => {
+    gameOverRef.current = gameOver;
+  }, [gameOver]);
 
   return (
     <div className="mountainBG w-full fullHeight relative overflow-hidden flex text-white">
@@ -331,11 +375,29 @@ export default function Mountain() {
         </div>
       )}
 
+      {serialConnected && (
+        <div className="absolute bottom-4 right-4 text-xl font-bold z-10">
+          Serial Connected
+        </div>
+      )}
+
+      {countdown !== null && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-30">
+          <h1 className="text-4xl font-bold mb-4">Lantern Detected</h1>
+          <div
+            key={countdown}
+            className="text-9xl font-extrabold text-white countdown-number"
+          >
+            {countdown}
+          </div>
+        </div>
+      )}
+
       <div>
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
             <Button onClick={() => setGameStart(true)}>Start Game</Button>
-            {/* <Button onClick={connectSerial}>Connect Joystick</Button> */}
+            <Button onClick={() => connectSerial()}>Connect Joystick</Button>
           </div>
         )}
         {gameOver && (

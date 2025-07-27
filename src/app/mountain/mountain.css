@@ -14,5 +14,24 @@
 }
 
 .people {
-  transition: filter .5s ease;
+  transition: filter 0.5s ease;
+}
+
+@keyframes countdownFadeZoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+.countdown-number {
+  animation: countdownFadeZoom 1s ease-out forwards;
 }
