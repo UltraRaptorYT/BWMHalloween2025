@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  useMotionValue,
-  animate,
-  motion,
-  AnimatePresence,
-} from "framer-motion";
+import { useMotionValue, animate } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Basket } from "@/components/Basket";
 import { Person } from "@/components/Person";
@@ -93,6 +88,7 @@ export default function Mountain() {
 
   const connectSerial = async (port?: SerialPort) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const serialAPI = (navigator as Navigator & { serial: any }).serial;
 
       if (!port) {
@@ -150,6 +146,7 @@ export default function Mountain() {
 
   useEffect(() => {
     const tryAutoConnect = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const serialAPI = (navigator as Navigator & { serial: any }).serial;
       const ports = await serialAPI.getPorts();
       if (ports.length > 0) {
