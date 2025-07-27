@@ -115,10 +115,10 @@ export default function Mountain() {
           if (value.includes("halloween")) {
             if (!gameStartRef.current && !gameOverRef.current) {
               console.log("🎃 Starting game...");
-              setCountdown(3);
+              startGame();
             } else if (gameOverRef.current) {
               console.log("🎃 Restarting game...");
-              setCountdown(3);
+              startGame();
             }
             continue;
           }
@@ -143,6 +143,10 @@ export default function Mountain() {
 
     return () => clearTimeout(timeout);
   }, [countdown]);
+
+  function startGame() {
+    setCountdown(3);
+  }
 
   useEffect(() => {
     const tryAutoConnect = async () => {
@@ -393,7 +397,7 @@ export default function Mountain() {
       <div>
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
-            <Button onClick={() => setGameStart(true)}>Start Game</Button>
+            <Button onClick={() => setCountdown(3)}>Start Game</Button>
             <Button onClick={() => connectSerial()}>Connect RFID Reader</Button>
           </div>
         )}
