@@ -394,7 +394,7 @@ export default function Mountain() {
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
             <Button onClick={() => setGameStart(true)}>Start Game</Button>
-            <Button onClick={() => connectSerial()}>Connect Joystick</Button>
+            <Button onClick={() => connectSerial()}>Connect RFID Reader</Button>
           </div>
         )}
         {gameOver && (
