@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Declare MediaPipe types as global
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Hands: any;
   }
 }
@@ -21,8 +22,11 @@ interface Results {
       z: number;
     }>
   >;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   multiHandWorldLandmarks?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   multiHandedness?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   image?: any;
 }
 
@@ -36,7 +40,7 @@ export default function GestureCarousel({
   onBack,
 }: GestureCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isGestureEnabled, setIsGestureEnabled] = useState(false);
+  // const [isGestureEnabled, setIsGestureEnabled] = useState(false);
   const [gestureStatus, setGestureStatus] = useState<string>("Initializing...");
   const [scriptsLoaded, setScriptsLoaded] = useState(false);
 
@@ -199,7 +203,7 @@ export default function GestureCarousel({
 
           // Start processing
           processFrame();
-          setIsGestureEnabled(true);
+          // setIsGestureEnabled(true);
           setGestureStatus("Camera initialized - Show your hand!");
         }
       } catch (error) {
