@@ -285,7 +285,7 @@ export default function GestureCarousel({
       </div>
 
       {/* Main Image */}
-      <div className="flex-1 flex items-center justify-center p-16">
+      <div className="flex-1 flex items-center justify-center p-16 h-full">
         <img
           src={images[currentIndex]}
           alt={`Image ${currentIndex + 1}`}
