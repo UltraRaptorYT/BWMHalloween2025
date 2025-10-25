@@ -100,7 +100,7 @@ export default function Mountain() {
       setSerialConnected(true);
 
       const decoder = new TextDecoderStream();
-      // @ts-expect-error
+      // @ts-expect-error TYPE ERROR Due to WRONG TYPE when passing arguement to pipeTo function
       port?.readable?.pipeTo(decoder.writable);
       const reader = decoder.readable.getReader();
       serialReader.current = reader;
