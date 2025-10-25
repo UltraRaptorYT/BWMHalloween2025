@@ -36,8 +36,8 @@ export default function Mountain() {
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const basketX = useMotionValue(0);
-  const basketWidth = 160;
-  const basketHeight = 56;
+  const basketWidth = 180;
+  const basketHeight = 100;
   const basketY =
     typeof window !== "undefined" ? window.innerHeight - basketHeight - 10 : 0;
   const moveSpeed = 75;
@@ -415,7 +415,14 @@ export default function Mountain() {
           Time: {timer}s
         </div>
       </div>
-      {gameStart && <Basket x={basketX} y={basketY} />}
+      {gameStart && (
+        <Basket
+          x={basketX}
+          y={basketY}
+          cartHeight={basketHeight}
+          cartWidth={basketWidth}
+        />
+      )}
       <div id="peopleDiv" className="grow-1">
         {people.map((p) => (
           <Person
