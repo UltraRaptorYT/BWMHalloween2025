@@ -100,6 +100,7 @@ export default function Mountain() {
       setSerialConnected(true);
 
       const decoder = new TextDecoderStream();
+      // @ts-ignore
       port?.readable?.pipeTo(decoder.writable);
       const reader = decoder.readable.getReader();
       serialReader.current = reader;

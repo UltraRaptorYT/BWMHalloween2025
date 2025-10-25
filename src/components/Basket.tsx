@@ -48,7 +48,7 @@ export function Basket({
     return () => unsub();
   }, [x]);
 
-  useAnimationFrame((t, deltaMs) => {
+  useAnimationFrame(() => {
     const curr = x.get();
     if (prevX.current == null) {
       prevX.current = curr;
@@ -63,7 +63,8 @@ export function Basket({
     // Convert linear distance to rotational degrees:
     // one full turn per wheel circumference distance
     const circumference = Math.PI * wheelDiameter; // px
-    const deltaDeg = (dx / circumference) * 360;
+    const spinFactor = 0.3;
+    const deltaDeg = (dx / circumference) * 360 * spinFactor;
 
     // Move forward = positive rotation, backward = negative
     wheelRotate.set(wheelRotate.get() + deltaDeg);
