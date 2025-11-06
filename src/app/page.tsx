@@ -102,38 +102,57 @@ export default function Home() {
   };
 
   return (
-    <main className="p-8 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">How did you feel as you walked through hell?</h1>
-
-      <div className="flex items-center gap-4 mb-4">
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-          onClick={recording ? stopRecording : startRecording}
-        >
-          {recording ? "Stop Recording" : "Start Recording"}
-        </button>
-
-        <span
-          className={`text-sm ${talking ? "text-green-500" : "text-gray-400"}`}
-        >
-          {talking ? "Listening..." : "Silent"}
-        </span>
-      </div>
-
-      {/* 🔊 Soundbar visual */}
-      <div className="flex items-end gap-1 h-24 mb-6">
-        {bars.map((height, idx) => (
-          <div
-            key={idx}
-            className="w-1 bg-pink-500 rounded transition-all duration-75"
-            style={{ height: `${height}px` }}
-          />
-        ))}
-      </div>
-
-      <p className="whitespace-pre-wrap bg-gray-100 p-4 rounded">
-        {transcript || "Transcript will appear here..."}
-      </p>
-    </main>
+    <div className="w-full">
+      <video
+        src="/bg.mp4"
+        loop
+        preload="auto"
+        muted
+        playsInline
+        style={{
+          cursor: "auto",
+          width: "100%",
+          height: "100%",
+          borderRadius: "0px",
+          display: "block",
+          backgroundColor: "rgba(0, 0, 0, 0)",
+        }}
+        autoPlay
+        className="block object-cover object-center absolute -z-10"
+      ></video>
+      <main className="p-8 max-w-xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4">
+          How did you feel as you walked through hell?
+        </h1>
+        <div className="flex items-center gap-4 mb-4">
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+            onClick={recording ? stopRecording : startRecording}
+          >
+            {recording ? "Stop Recording" : "Start Recording"}
+          </button>
+          <span
+            className={`text-sm ${
+              talking ? "text-green-500" : "text-gray-400"
+            }`}
+          >
+            {talking ? "Listening..." : "Silent"}
+          </span>
+        </div>
+        {/* 🔊 Soundbar visual */}
+        <div className="flex items-end gap-1 h-24 mb-6">
+          {bars.map((height, idx) => (
+            <div
+              key={idx}
+              className="w-1 bg-pink-500 rounded transition-all duration-75"
+              style={{ height: `${height}px` }}
+            />
+          ))}
+        </div>
+        <p className="whitespace-pre-wrap bg-gray-100 p-4 rounded">
+          {transcript || "Transcript will appear here..."}
+        </p>
+      </main>
+    </div>
   );
 }

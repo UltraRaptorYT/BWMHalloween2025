@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     const text = result.text;
 
-    const { data: tableData, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from("bwm-halloween-2025")
       .insert({
         message: text,

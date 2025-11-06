@@ -133,9 +133,8 @@ export default function Mountain() {
         flush: (controller) => lineTransformer.flush(controller),
       });
 
-      // @ts-ignore piping type
+      // @ts-expect-error
       port.readable?.pipeTo(textDecoder.writable).catch(() => {});
-      // @ts-ignore piping type
       textDecoder.readable?.pipeTo(lineStream.writable).catch(() => {});
 
       const reader = lineStream.readable.getReader();
@@ -325,6 +324,7 @@ export default function Mountain() {
     setCountdown(null);
     setGameStart(true);
 
+    // add a post-restart cool-down so lingering tags don't retrigger
     triggeredRef.current = true;
     lastTriggerAtRef.current = performance.now();
   };
