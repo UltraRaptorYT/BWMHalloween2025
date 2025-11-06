@@ -103,7 +103,7 @@ export default function Home() {
 
   return (
     <main className="p-8 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">🎤 Transcription App</h1>
+      <h1 className="text-2xl font-bold mb-4">How did you feel as you walked through hell?</h1>
 
       <div className="flex items-center gap-4 mb-4">
         <button
@@ -116,7 +116,7 @@ export default function Home() {
         <span
           className={`text-sm ${talking ? "text-green-500" : "text-gray-400"}`}
         >
-          {talking ? "Speaking..." : "Silent"}
+          {talking ? "Listening..." : "Silent"}
         </span>
       </div>
 

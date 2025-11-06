@@ -71,6 +71,21 @@ export async function POST(req: NextRequest) {
 
     const text = result.text;
 
+    const { data: tableData, error: insertError } = await supabase
+      .from("bwm-halloween-2025")
+      .insert({
+        message: text,
+        file: supabaseUrl,
+      });
+
+    if (insertError) {
+      console.error("Supabase insert error:", insertError.message);
+      return NextResponse.json(
+        { error: "Failed to upload to storage." },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       text,
       audioUrl: supabaseUrl, // optionally return the public URL
