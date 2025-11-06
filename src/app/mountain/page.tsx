@@ -21,23 +21,6 @@ type PersonType = {
   flipChance: number; // chance to flip to falling each frame
 };
 
-// --- line splitter for Web Serial text stream ---
-class LineBreakTransformer {
-  private container = "";
-  transform(
-    chunk: string,
-    controller: TransformStreamDefaultController<string>
-  ) {
-    this.container += chunk;
-    const lines = this.container.split(/\r?\n/);
-    this.container = lines.pop() ?? "";
-    for (const l of lines) controller.enqueue(l);
-  }
-  flush(controller: TransformStreamDefaultController<string>) {
-    if (this.container) controller.enqueue(this.container);
-  }
-}
-
 export default function Mountain() {
   const [gameStart, setGameStart] = useState(false);
   const [people, setPeople] = useState<PersonType[]>([]);
@@ -65,13 +48,6 @@ export default function Mountain() {
   const maxPeople = 6;
 
   const keysPressed = useRef({ left: false, right: false });
-
-  const triggeredRef = useRef(false);
-  const lastTriggerAtRef = useRef(0);
-  const lastSeenHalloweenAtRef = useRef(0);
-
-  const TRIGGER_COOLDOWN_MS = 1200;
-  const RELEASE_SILENCE_MS = 400;
 
   // Preload Images
   useEffect(() => {
@@ -110,97 +86,51 @@ export default function Mountain() {
     basketX.set(centerX);
   }, [basketX]);
 
-  const connectSerial = async (port: SerialPort | null = null) => {
+  const connectSerial = async (port?: SerialPort) => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const serialAPI = (navigator as Navigator & { serial?: any }).serial;
-      if (!serialAPI) throw new Error("Web Serial API not available");
+      const serialAPI = (navigator as Navigator & { serial: any }).serial;
 
       if (!port) {
-        // must be called from a user gesture handler
+        // ✅ Must be called inside a user click handler
         port = await serialAPI.requestPort();
       }
 
       await port?.open({ baudRate: 9600 });
       setSerialConnected(true);
 
-      // bytes -> text -> lines
-      const textDecoder = new TextDecoderStream();
-      const lineTransformer = new LineBreakTransformer();
-      const lineStream = new TransformStream<string, string>({
-        transform: (chunk, controller) =>
-          lineTransformer.transform(chunk, controller),
-        flush: (controller) => lineTransformer.flush(controller),
-      });
+      const decoder = new TextDecoderStream();
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: Wrong type inferred for pipeTo arg
+      port?.readable?.pipeTo(decoder.writable);
 
-      // @ts-expect-error
-      port.readable?.pipeTo(textDecoder.writable).catch(() => {});
-      textDecoder.readable?.pipeTo(lineStream.writable).catch(() => {});
-
-      const reader = lineStream.readable.getReader();
+      const reader = decoder.readable.getReader();
       serialReader.current = reader;
 
-      (async () => {
-        const halloweenRegex = /\bhalloween\b/i; // match 'Text: halloween' or bare 'halloween'
-        try {
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            if (!value) continue;
+      const readLoop = async () => {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!value) continue;
 
-            const line = String(value).trim();
-            const now = performance.now();
+          console.log("Serial Received:", value.trim());
 
-            if (halloweenRegex.test(line)) {
-              lastSeenHalloweenAtRef.current = now;
-
-              // edge-trigger: only the first 'halloween' after silence starts the game
-              const cooled =
-                now - lastTriggerAtRef.current >= TRIGGER_COOLDOWN_MS;
-              if (!triggeredRef.current && cooled) {
-                triggeredRef.current = true;
-                lastTriggerAtRef.current = now;
-
-                if (!gameStartRef.current && !gameOverRef.current) {
-                  startGame();
-                } else if (gameOverRef.current) {
-                  startGame();
-                }
-              }
-            } else {
-              // if we see non-halloween lines, just check if enough silence elapsed
-              // (many readers spam only the same line; the silence check happens in the timer below)
+          if (value.includes("halloween")) {
+            if (!gameStartRef.current && !gameOverRef.current) {
+              console.log("🎃 Starting game...");
+              startGame();
+            } else if (gameOverRef.current) {
+              console.log("🎃 Restarting game...");
+              startGame();
             }
+            continue;
           }
-        } catch {
-          // reader aborted/closed
-        } finally {
-          try {
-            reader.releaseLock();
-          } catch {}
         }
-      })();
+      };
 
-      // Re-arm logic: a lightweight interval that watches for "silence"
-      // i.e., no 'halloween' lines for RELEASE_SILENCE_MS
-      const rearmInterval = window.setInterval(() => {
-        const now = performance.now();
-        // If we have been triggered, only clear when halloween disappeared for a while
-        if (
-          triggeredRef.current &&
-          now - lastSeenHalloweenAtRef.current >= RELEASE_SILENCE_MS
-        ) {
-          triggeredRef.current = false; // allow next trigger on next approach
-        }
-      }, 50);
-
-      // Clean up the interval when page unmounts or when serial disconnects
-      const stopRearm = () => window.clearInterval(rearmInterval);
-      // store a handle if you want to stop it elsewhere; otherwise it's fine as-is
-      // (You can also call stopRearm() in a disconnectSerial helper)
+      readLoop();
     } catch (err) {
       console.error("Serial connection failed:", err);
-      setSerialConnected(false);
     }
   };
 
@@ -323,10 +253,6 @@ export default function Mountain() {
     setGameOver(false);
     setCountdown(null);
     setGameStart(true);
-
-    // add a post-restart cool-down so lingering tags don't retrigger
-    triggeredRef.current = true;
-    lastTriggerAtRef.current = performance.now();
   };
 
   useEffect(() => {
@@ -338,7 +264,6 @@ export default function Mountain() {
           keysPressed.current.left = false;
           keysPressed.current.right = false;
           setGameOver(true);
-          serialDetectedRef.current = false;
           setGameStart(false);
           return 0;
         }
@@ -436,7 +361,6 @@ export default function Mountain() {
   }, [checkCollision]);
 
   const gameStartRef = useRef(gameStart);
-  const serialDetectedRef = useRef(false);
   const gameOverRef = useRef(gameOver);
 
   useEffect(() => {
