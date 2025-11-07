@@ -251,7 +251,7 @@ export default function Mountain() {
     setScore(0);
     setTimer(commonTimer);
     setGameOver(false);
-    setCountdown(3);
+    setCountdown(null);
     setGameStart(true);
   };
 
