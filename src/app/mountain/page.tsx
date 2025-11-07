@@ -407,12 +407,12 @@ export default function Mountain() {
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
             <h1 className="text-4xl font-bold mb-4">Game Over</h1>
-            <p className="text-xl mb-6">Final Score: {score}</p>
+            <p className="text-xl mb-6">Total Beings Saved: {score}</p>
             <Button onClick={() => setCountdown(3)}>Play Again</Button>
           </div>
         )}
         <div className="absolute top-4 left-4 text-xl font-bold z-10">
-          Score: {score}
+          Beings Saved: {score}
         </div>
         <div className="absolute top-4 right-4 text-xl font-bold z-10">
           Time: {timer}s
