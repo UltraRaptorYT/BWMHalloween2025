@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMotionValue, animate } from "framer-motion";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
 import { Basket } from "@/components/Basket";
 import { Person } from "@/components/Person";
 import { v4 as uuidv4 } from "uuid";
@@ -402,7 +402,7 @@ export default function Mountain() {
   return (
     <div className="mountainBG w-full fullHeight relative overflow-hidden flex text-white">
       {gamepadConnected && (
-        <div className="absolute bottom-4 left-4 text-xl font-bold z-10">
+        <div className="absolute bottom-4 left-4 text-xl font-bold z-10 opacity-30">
           Gamepad Connected
         </div>
       )}
@@ -444,10 +444,10 @@ export default function Mountain() {
             </h1>
           </div>
         )}
-        <div className="absolute top-4 left-4 text-xl font-bold z-10">
+        <div className="absolute top-4 left-4 text-3xl font-bold z-10">
           Beings Saved: {score}
         </div>
-        <div className="absolute top-4 right-4 text-xl font-bold z-10">
+        <div className="absolute top-4 right-4 text-3xl font-bold z-10">
           Time: {timer}s
         </div>
       </div>
