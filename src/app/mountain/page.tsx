@@ -46,6 +46,7 @@ export default function Mountain() {
   const personSize = 200;
   const spawnTiming = 1000;
   const maxPeople = 6;
+  const btnPrev = useRef<Record<number, boolean>>({});
 
   const keysPressed = useRef({ left: false, right: false });
 
@@ -80,6 +81,33 @@ export default function Mountain() {
       );
     };
   }, []);
+  useEffect(() => {
+    let raf = 0;
+
+    const poll = () => {
+      const idx = gamepadIndex.current;
+      const gp = idx !== null ? navigator.getGamepads()?.[idx] : null;
+
+      if (gp) {
+        const pressed = Boolean(gp.buttons?.[3]?.pressed); // btn 3 (Y/△)
+        const prev = Boolean(btnPrev.current[3]);
+
+        if (pressed && !prev) {
+          // rising edge -> start (or restart)
+          if (!gameStartRef.current || gameOverRef.current) {
+            setCountdown(3);
+          }
+        }
+
+        btnPrev.current[3] = pressed; // latch
+      }
+
+      raf = requestAnimationFrame(poll);
+    };
+
+    raf = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(raf);
+  }, []); // no deps on purpose
 
   useEffect(() => {
     const centerX = window.innerWidth / 2 - basketWidth / 2;
@@ -406,8 +434,8 @@ export default function Mountain() {
         )}
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-            <h1 className="text-4xl font-bold mb-4">Game Over</h1>
-            <p className="text-xl mb-6">Total Beings Saved: {score}</p>
+            <h1 className="text-7xl font-bold mb-4">Game Over</h1>
+            <p className="text-5xl mb-6">Total Beings Saved: {score}</p>
             <Button onClick={() => setCountdown(3)}>Play Again</Button>
           </div>
         )}
