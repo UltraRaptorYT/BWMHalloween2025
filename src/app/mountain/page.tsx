@@ -428,15 +428,20 @@ export default function Mountain() {
       <div>
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
-            <Button onClick={() => setCountdown(3)}>Start Game</Button>
-            <Button onClick={() => connectSerial()}>Connect RFID Reader</Button>
+            {/* <Button onClick={() => setCountdown(3)}>Start Game</Button>
+            <Button onClick={() => connectSerial()}>Connect RFID Reader</Button> */}
+            <h1 className="text-5xl font-bold mb-4">
+              Press the button on gamepad to start
+            </h1>
           </div>
         )}
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
             <h1 className="text-7xl font-bold mb-4">Game Over</h1>
             <p className="text-5xl mb-6">Total Beings Saved: {score}</p>
-            <Button onClick={() => setCountdown(3)}>Play Again</Button>
+            <h1 className="text-5xl font-bold mb-4">
+              Press the button on gamepad to play again
+            </h1>
           </div>
         )}
         <div className="absolute top-4 left-4 text-xl font-bold z-10">
