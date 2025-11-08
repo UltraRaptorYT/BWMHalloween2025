@@ -27,7 +27,7 @@ export function Person({
     // 🕺 Falling man SFX
     const fall = new Audio("/man-fall.mp3");
     fall.preload = "auto";
-    fall.volume = 0.2;
+    fall.volume = 0.3;
     fallSoundRef.current = fall;
   }, []);
 
@@ -59,7 +59,7 @@ export function Person({
   }, [uuid, state]);
 
   useEffect(() => {
-    if (state == "falling") {
+    if (state == "falling" && Math.random() < 0.2) {
       const fallSound = fallSoundRef.current;
       if (fallSound) {
         fallSound.currentTime = 0;
