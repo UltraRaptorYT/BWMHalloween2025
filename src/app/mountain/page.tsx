@@ -55,6 +55,22 @@ export default function Mountain() {
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const gamepadIndex = useRef<number | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const lanternSoundRef = useRef<HTMLAudioElement | null>(null);
+  const cartSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio("/lantern.mp3");
+    audio.preload = "auto";
+    audio.volume = 1; // loudness
+    audio.load();
+    lanternSoundRef.current = audio;
+
+    const cart = new Audio("/cart-move.mp3"); // put file in /public or adjust path
+    cart.preload = "auto";
+    cart.loop = true; // continuous rolling sound
+    cart.volume = 1; // tweak as you like
+    cartSoundRef.current = cart;
+  }, []);
 
   const basketX = useMotionValue(0);
   const basketWidth = 180;
@@ -231,6 +247,20 @@ export default function Mountain() {
   }, [countdown]);
 
   function startGame() {
+    if (lanternSoundRef.current) {
+      lanternSoundRef.current.currentTime = 2; // rewind so it can replay
+      lanternSoundRef.current.play().catch((err) => {
+        // autoplay may be blocked until user interacts; fail silently
+        console.warn("Could not play lantern sound:", err);
+      });
+    }
+    requestAnimationFrame(() => {
+      const centerX = window.innerWidth / 2 - basketWidth / 2;
+      basketX.set(centerX);
+    });
+
+    keysPressed.current.left = false;
+    keysPressed.current.right = false;
     setCountdown(3);
   }
 
@@ -260,6 +290,28 @@ export default function Mountain() {
 
       if (keysPressed.current.left) left = true;
       if (keysPressed.current.right) right = true;
+
+      const isMoving =
+        (left || right) && gameStartRef.current && !gameOverRef.current;
+
+      // 🔊 handle cart movement sound
+      const cartSound = cartSoundRef.current;
+      if (cartSound) {
+        if (isMoving) {
+          if (cartSound.paused) {
+            cartSound.play().catch(() => {
+              // ignore autoplay errors; user interaction usually fixes it
+            });
+          }
+        } else {
+          if (!cartSound.paused) {
+            cartSound.pause();
+            // for a looping rolling sound, *don't* reset currentTime,
+            // so it resumes smoothly:
+            // cartSound.currentTime = 0; // uncomment if you want it to restart each time
+          }
+        }
+      }
 
       if (left) newX -= moveSpeed * (gamepad ? 1.25 : 1);
       if (right) newX += moveSpeed * (gamepad ? 1.25 : 1);
@@ -293,6 +345,12 @@ export default function Mountain() {
       cancelAnimationFrame(animationFrameId.current!);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+
+      const cartSound = cartSoundRef.current;
+      if (cartSound) {
+        cartSound.pause();
+        cartSound.currentTime = 0;
+      }
     };
   }, [gameStart, gameOver]);
 
