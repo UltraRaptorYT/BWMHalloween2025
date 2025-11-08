@@ -120,8 +120,8 @@ export default function Home() {
         autoPlay
         className="block object-cover object-center absolute -z-10"
       ></video>
-      <main className="p-8 max-w-xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">
+      <main className="p-8 max-w-7xl mx-auto flex flex-col justify-center items-center">
+        <h1 className="text-5xl font-bold mb-4">
           How did you feel as you walked through hell?
         </h1>
         <div className="flex items-center gap-4 mb-4">
@@ -140,7 +140,7 @@ export default function Home() {
           </span>
         </div>
         {/* 🔊 Soundbar visual */}
-        <div className="flex items-end gap-1 h-24 mb-6">
+        <div className="flex items-end gap-1 h-24 mb-6 mt-10">
           {bars.map((height, idx) => (
             <div
               key={idx}
@@ -149,7 +149,7 @@ export default function Home() {
             />
           ))}
         </div>
-        <p className="whitespace-pre-wrap bg-gray-100 p-4 rounded">
+        <p className="whitespace-pre-wrap bg-gray-100 p-4 rounded w-full">
           {transcript || "Transcript will appear here..."}
         </p>
       </main>

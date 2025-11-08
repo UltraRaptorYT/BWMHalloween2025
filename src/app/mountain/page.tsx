@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMotionValue, animate } from "framer-motion";
-// import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Basket } from "@/components/Basket";
 import { Person } from "@/components/Person";
 import { v4 as uuidv4 } from "uuid";
@@ -21,6 +21,23 @@ type PersonType = {
   flipChance: number; // chance to flip to falling each frame
 };
 
+// --- line splitter for Web Serial text stream ---
+class LineBreakTransformer {
+  private container = "";
+  transform(
+    chunk: string,
+    controller: TransformStreamDefaultController<string>
+  ) {
+    this.container += chunk;
+    const lines = this.container.split(/\r?\n/);
+    this.container = lines.pop() ?? "";
+    for (const line of lines) controller.enqueue(line);
+  }
+  flush(controller: TransformStreamDefaultController<string>) {
+    if (this.container) controller.enqueue(this.container);
+  }
+}
+
 export default function Mountain() {
   const [gameStart, setGameStart] = useState(false);
   const [people, setPeople] = useState<PersonType[]>([]);
@@ -28,11 +45,15 @@ export default function Mountain() {
   const commonTimer = 30;
   const [timer, setTimer] = useState(commonTimer);
   const [gameOver, setGameOver] = useState(false);
+  const serialPortRef = useRef<SerialPort | null>(null);
   const serialReader = useRef<ReadableStreamDefaultReader<string> | null>(null);
+  const [serialConnected, setSerialConnected] = useState(false);
+  const isConnectingRef = useRef(false);
+  const [connecting, setConnecting] = useState(false);
+
   const animationFrameId = useRef<number>(0);
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const gamepadIndex = useRef<number | null>(null);
-  const [serialConnected, setSerialConnected] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const basketX = useMotionValue(0);
@@ -46,9 +67,34 @@ export default function Mountain() {
   const personSize = 200;
   const spawnTiming = 1000;
   const maxPeople = 6;
-  const btnPrev = useRef<Record<number, boolean>>({});
 
   const keysPressed = useRef({ left: false, right: false });
+
+  useEffect(() => {
+    return () => {
+      (async () => {
+        try {
+          if (serialReader.current) {
+            try {
+              await serialReader.current.cancel();
+            } catch {}
+            try {
+              serialReader.current.releaseLock();
+            } catch {}
+            serialReader.current = null;
+          }
+          if (serialPortRef.current) {
+            try {
+              await serialPortRef.current.close();
+            } catch {}
+            serialPortRef.current = null;
+          }
+        } catch (e) {
+          console.error("Error closing serial:", e);
+        }
+      })();
+    };
+  }, []);
 
   // Preload Images
   useEffect(() => {
@@ -81,84 +127,93 @@ export default function Mountain() {
       );
     };
   }, []);
-  useEffect(() => {
-    let raf = 0;
-
-    const poll = () => {
-      const idx = gamepadIndex.current;
-      const gp = idx !== null ? navigator.getGamepads()?.[idx] : null;
-
-      if (gp) {
-        const pressed = Boolean(gp.buttons?.[3]?.pressed); // btn 3 (Y/△)
-        const prev = Boolean(btnPrev.current[3]);
-
-        if (pressed && !prev) {
-          // rising edge -> start (or restart)
-          if (!gameStartRef.current || gameOverRef.current) {
-            setCountdown(3);
-          }
-        }
-
-        btnPrev.current[3] = pressed; // latch
-      }
-
-      raf = requestAnimationFrame(poll);
-    };
-
-    raf = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(raf);
-  }, []); // no deps on purpose
 
   useEffect(() => {
     const centerX = window.innerWidth / 2 - basketWidth / 2;
     basketX.set(centerX);
   }, [basketX]);
 
-  const connectSerial = async (port?: SerialPort) => {
+  const connectSerial = async (incomingPort?: SerialPort) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const serialAPI = (navigator as Navigator & { serial: any }).serial;
+      if (isConnectingRef.current) return;
+      isConnectingRef.current = true;
+      setConnecting(true);
 
-      if (!port) {
-        // ✅ Must be called inside a user click handler
-        port = await serialAPI.requestPort();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serialAPI = (navigator as Navigator & { serial?: any }).serial;
+      if (!serialAPI) {
+        console.error("Web Serial not available (use Chrome/Edge over HTTPS).");
+        return;
       }
 
-      await port?.open({ baudRate: 9600 });
+      const port: SerialPort = incomingPort ?? (await serialAPI.requestPort());
+
+      if (!port.readable || !port.writable) {
+        await port.open({ baudRate: 9600 });
+      }
+
+      serialPortRef.current = port;
       setSerialConnected(true);
 
-      const decoder = new TextDecoderStream();
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore: Wrong type inferred for pipeTo arg
-      port?.readable?.pipeTo(decoder.writable);
+      // Already have a read loop wired
+      if (serialReader.current) return;
 
-      const reader = decoder.readable.getReader();
+      const textDecoder = new TextDecoderStream();
+      const portReadable = port.readable as ReadableStream<Uint8Array>;
+      const decoderWritable =
+        textDecoder.writable as unknown as WritableStream<Uint8Array>;
+      portReadable.pipeTo(decoderWritable).catch(() => {
+        // swallow close errors
+      });
+
+      const lineStream = textDecoder.readable.pipeThrough(
+        new TransformStream(new LineBreakTransformer())
+      );
+      const reader = lineStream.getReader();
       serialReader.current = reader;
 
-      const readLoop = async () => {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (!value) continue;
+      // 🔁 Read forever
+      (async () => {
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value == null) continue;
 
-          console.log("Serial Received:", value.trim());
+            const line = value.trim();
+            console.log("[Serial]", line);
 
-          if (value.includes("halloween")) {
-            if (!gameStartRef.current && !gameOverRef.current) {
-              console.log("🎃 Starting game...");
-              startGame();
-            } else if (gameOverRef.current) {
-              console.log("🎃 Restarting game...");
+            // ⬇️ Ignore serial triggers during the 3s cooldown after game end
+            const now = Date.now();
+            if (now < serialBlockUntilRef.current) {
+              // Still in "cooldown" – read but ignore
+              continue;
+            }
+
+            // 👉 Only affect game if NOT already started and no countdown running
+            if (
+              line.toLowerCase() === "halloween" &&
+              !gameStartRef.current && // game not running
+              countdownRef.current === null // no countdown in progress
+            ) {
               startGame();
             }
-            continue;
           }
+        } catch (e) {
+          console.error("Serial read error:", e);
+        } finally {
+          try {
+            reader.releaseLock();
+          } catch {}
+          serialReader.current = null;
+          setSerialConnected(false);
         }
-      };
-
-      readLoop();
+      })();
     } catch (err) {
       console.error("Serial connection failed:", err);
+    } finally {
+      isConnectingRef.current = false;
+      setConnecting(false);
     }
   };
 
@@ -178,20 +233,6 @@ export default function Mountain() {
   function startGame() {
     setCountdown(3);
   }
-
-  useEffect(() => {
-    const tryAutoConnect = async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const serialAPI = (navigator as Navigator & { serial: any }).serial;
-      const ports = await serialAPI.getPorts();
-      if (ports.length > 0) {
-        console.log("Auto-connecting to saved port...");
-        connectSerial(ports[0]);
-      }
-    };
-
-    tryAutoConnect();
-  }, []);
 
   useEffect(() => {
     if (!gameStart || gameOver) return;
@@ -293,6 +334,7 @@ export default function Mountain() {
           keysPressed.current.right = false;
           setGameOver(true);
           setGameStart(false);
+          serialBlockUntilRef.current = Date.now() + 3000;
           return 0;
         }
         return prev - 1;
@@ -390,6 +432,8 @@ export default function Mountain() {
 
   const gameStartRef = useRef(gameStart);
   const gameOverRef = useRef(gameOver);
+  const countdownRef = useRef<number | null>(countdown);
+  const serialBlockUntilRef = useRef<number>(0);
 
   useEffect(() => {
     gameStartRef.current = gameStart;
@@ -399,16 +443,66 @@ export default function Mountain() {
     gameOverRef.current = gameOver;
   }, [gameOver]);
 
+  useEffect(() => {
+    countdownRef.current = countdown;
+  }, [countdown]);
+
+  useEffect(() => {
+    return () => {
+      (async () => {
+        try {
+          if (serialReader.current) {
+            try {
+              await serialReader.current.cancel();
+            } catch {}
+            try {
+              serialReader.current.releaseLock();
+            } catch {}
+            serialReader.current = null;
+          }
+          if (serialPortRef.current) {
+            // Only close if it's open (readable/writable non-null)
+            if (
+              serialPortRef.current.readable ||
+              serialPortRef.current.writable
+            ) {
+              try {
+                await serialPortRef.current.close();
+              } catch {}
+            }
+            serialPortRef.current = null;
+          }
+        } catch (e) {
+          console.error("Error closing serial:", e);
+        }
+      })();
+    };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serialAPI = (navigator as Navigator & { serial?: any }).serial;
+      if (!serialAPI || isConnectingRef.current || serialConnected) return;
+
+      const ports: SerialPort[] = await serialAPI.getPorts();
+      if (ports.length > 0) {
+        console.log("Auto-connecting to saved port...");
+        await connectSerial(ports[0]);
+      }
+    })();
+  }, [serialConnected]);
+
   return (
     <div className="mountainBG w-full fullHeight relative overflow-hidden flex text-white">
       {gamepadConnected && (
-        <div className="absolute bottom-4 left-4 text-xl font-bold z-10 opacity-30">
+        <div className="absolute bottom-4 left-4 text-xl font-bold z-10 opacity-25">
           Gamepad Connected
         </div>
       )}
 
       {serialConnected && (
-        <div className="absolute bottom-4 right-4 text-xl font-bold z-10">
+        <div className="absolute bottom-4 right-4 text-xl font-bold z-10 opacity-25">
           Serial Connected
         </div>
       )}
@@ -428,26 +522,26 @@ export default function Mountain() {
       <div>
         {!gameStart && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-4">
-            {/* <Button onClick={() => setCountdown(3)}>Start Game</Button>
-            <Button onClick={() => connectSerial()}>Connect RFID Reader</Button> */}
-            <h1 className="text-5xl font-bold mb-4">
-              Press the button on gamepad to start
-            </h1>
+            <Button onClick={() => startGame()}>Start Game</Button>
+            <Button
+              onClick={() => connectSerial(undefined)}
+              disabled={connecting}
+            >
+              {connecting ? "Connecting…" : "Connect Serial"}
+            </Button>
           </div>
         )}
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-            <h1 className="text-7xl font-bold mb-4">Game Over</h1>
-            <p className="text-5xl mb-6">Total Beings Saved: {score}</p>
-            <h1 className="text-5xl font-bold mb-4">
-              Press the button on gamepad to play again
-            </h1>
+            <h1 className="text-4xl font-bold mb-4">Game Over</h1>
+            <p className="text-xl mb-6">Final Score: {score}</p>
+            <Button onClick={() => startGame()}>Play Again</Button>
           </div>
         )}
-        <div className="absolute top-4 left-4 text-3xl font-bold z-10">
-          Beings Saved: {score}
+        <div className="absolute top-4 left-4 text-xl font-bold z-10">
+          Score: {score}
         </div>
-        <div className="absolute top-4 right-4 text-3xl font-bold z-10">
+        <div className="absolute top-4 right-4 text-xl font-bold z-10">
           Time: {timer}s
         </div>
       </div>
