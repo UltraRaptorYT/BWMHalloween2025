@@ -57,6 +57,7 @@ export default function Mountain() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const lanternSoundRef = useRef<HTMLAudioElement | null>(null);
   const cartSoundRef = useRef<HTMLAudioElement | null>(null);
+  const bgRockSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const audio = new Audio("/lantern.mp3");
@@ -68,8 +69,14 @@ export default function Mountain() {
     const cart = new Audio("/cart-move.mp3"); // put file in /public or adjust path
     cart.preload = "auto";
     cart.loop = true; // continuous rolling sound
-    cart.volume = 1; // tweak as you like
+    cart.volume = 0.25; // tweak as you like
     cartSoundRef.current = cart;
+
+    const bg = new Audio("/bg-rocks.mp3"); // put file in /public
+    bg.preload = "auto";
+    bg.loop = true;
+    bg.volume = 0.2; // softer than SFX
+    bgRockSoundRef.current = bg;
   }, []);
 
   const basketX = useMotionValue(0);
@@ -85,7 +92,38 @@ export default function Mountain() {
   const maxPeople = 6;
 
   const keysPressed = useRef({ left: false, right: false });
+  const btnPrev = useRef<Record<number, boolean>>({});
 
+  useEffect(() => {
+    let raf = 0;
+
+    const poll = () => {
+      const idx = gamepadIndex.current;
+
+      const gp = idx !== null ? navigator.getGamepads()?.[idx] : null;
+      if (gp) {
+        const pressed = Boolean(gp.buttons?.[3]?.pressed); // btn 3 (Y/△)
+
+        const prev = Boolean(btnPrev.current[3]);
+
+        if (pressed && !prev) {
+          // rising edge -> start (or restart)
+
+          if (!gameStartRef.current || gameOverRef.current) {
+            startGame();
+          }
+        }
+
+        btnPrev.current[3] = pressed; // latch
+      }
+
+      raf = requestAnimationFrame(poll);
+    };
+
+    raf = requestAnimationFrame(poll);
+
+    return () => cancelAnimationFrame(raf);
+  }, []); // no deps on purpose
   useEffect(() => {
     return () => {
       (async () => {
@@ -380,6 +418,14 @@ export default function Mountain() {
     setGameOver(false);
     setCountdown(null);
     setGameStart(true);
+    const bg = bgRockSoundRef.current;
+    if (bg) {
+      // optional: restart from beginning each game
+      bg.currentTime = 0;
+      bg.play().catch((err) => {
+        console.warn("Could not play bg rocks sound:", err);
+      });
+    }
   };
 
   useEffect(() => {
@@ -393,6 +439,12 @@ export default function Mountain() {
           setGameOver(true);
           setGameStart(false);
           serialBlockUntilRef.current = Date.now() + 3000;
+          const bg = bgRockSoundRef.current;
+          if (bg) {
+            bg.pause();
+            bg.currentTime = 0;
+          }
+
           return 0;
         }
         return prev - 1;
@@ -591,15 +643,15 @@ export default function Mountain() {
         )}
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-            <h1 className="text-4xl font-bold mb-4">Game Over</h1>
-            <p className="text-xl mb-6">Final Score: {score}</p>
+            <h1 className="text-7xl font-bold mb-4">Game Over</h1>
+            <p className="text-5xl mb-6">Total Beings Saved: {score}</p>
             <Button onClick={() => startGame()}>Play Again</Button>
           </div>
         )}
-        <div className="absolute top-4 left-4 text-xl font-bold z-10">
-          Score: {score}
+        <div className="absolute top-4 left-4 text-3xl font-bold z-10">
+          Beings Saved: {score}
         </div>
-        <div className="absolute top-4 right-4 text-xl font-bold z-10">
+        <div className="absolute top-4 right-4 text-3xl font-bold z-10">
           Time: {timer}s
         </div>
       </div>

@@ -21,6 +21,15 @@ export function Person({
 }) {
   const [gifUrl, setGifUrl] = useState<string>("");
   const prevUrl = useRef<string>("");
+  const fallSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // 🕺 Falling man SFX
+    const fall = new Audio("/man-fall.mp3");
+    fall.preload = "auto";
+    fall.volume = 0.2;
+    fallSoundRef.current = fall;
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -48,6 +57,18 @@ export function Person({
       controller.abort();
     };
   }, [uuid, state]);
+
+  useEffect(() => {
+    if (state == "falling") {
+      const fallSound = fallSoundRef.current;
+      if (fallSound) {
+        fallSound.currentTime = 0;
+        fallSound.play().catch(() => {
+          // ignore autoplay / quick succession errors
+        });
+      }
+    }
+  }, [state]);
 
   return (
     <motion.div
